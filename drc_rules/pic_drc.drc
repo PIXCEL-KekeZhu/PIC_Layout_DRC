@@ -1,0 +1,42 @@
+# KLayout DRC Script for PIC (Photonic Integrated Circuit) layouts
+# Run via: klayout -b -r pic_drc.drc -rd input=<gds_file> -rd output=<report_file>
+
+# --- Input / Output ---
+source($input)
+report("PIC DRC Report", $output)
+
+# --- Parallel execution: thread count passed in from Python ---
+threads($threads.to_i)
+
+# --- Layer definitions ---
+wg    = input(1, 0)   # Waveguide core
+clad  = input(2, 0)   # Cladding / oxide
+metal = input(3, 0)   # Metal routing (if present)
+
+# --- Waveguide rules (run in parallel per layer) ---
+
+# WG.W1 - Minimum waveguide width
+wg.width(0.3.um).output("WG.W1", "Waveguide width < 0.3 um")
+
+# WG.S1 - Minimum spacing between waveguides
+wg.space(0.2.um).output("WG.S1", "Waveguide spacing < 0.2 um")
+
+# WG.A1 - Minimum waveguide area (removes slivers)
+wg.with_area(nil, 0.1.um2).output("WG.A1", "Waveguide area < 0.1 um^2")
+
+# WG.E1 - Waveguide must be enclosed by cladding
+wg.enclosed(clad, 1.0.um).output("WG.E1", "Waveguide not enclosed by cladding by >= 1.0 um") if clad.count > 0
+
+# --- Metal rules (only checked if metal layer is present) ---
+if metal.count > 0
+
+  # M.W1 - Minimum metal width
+  metal.width(0.5.um).output("M.W1", "Metal width < 0.5 um")
+
+  # M.S1 - Minimum metal spacing
+  metal.space(0.5.um).output("M.S1", "Metal spacing < 0.5 um")
+
+  # M.OL1 - Metal must not overlap waveguide
+  metal.and(wg).output("M.OL1", "Metal overlaps waveguide")
+
+end

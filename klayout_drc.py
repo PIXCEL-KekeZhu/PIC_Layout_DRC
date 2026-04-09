@@ -38,15 +38,19 @@ def run_drc(gds_file: str):
     report_file = os.path.join(OUTPUT_DIR, f"{base_name}_drc.lyrdb")
     klayout_bin = get_klayout_bin()
 
+    n_threads = os.cpu_count() or 1
+
     print(f"Running DRC on:  {gds_file}")
     print(f"DRC rules:       {DRC_SCRIPT}")
     print(f"Report output:   {report_file}")
+    print(f"Threads:         {n_threads}")
 
     subprocess.run(
         [
             klayout_bin, "-b", "-r", DRC_SCRIPT,
             "-rd", f"input={gds_file}",
             "-rd", f"output={report_file}",
+            "-rd", f"threads={n_threads}",
         ],
         check=True
     )

@@ -16,6 +16,11 @@ clad_gap  = 3.0    # cladding margin around waveguides
 # --- Straight waveguide 1 (horizontal, x: 0..10) ---
 top.shapes(layer).insert(db.DBox(0, -wg_width, 10, wg_width))
 
+# --- Parallel waveguide (doubled width, center shifted up by wg_width) ---
+par_half = 2 * wg_width       # doubled width → half-width = 2 * wg_width
+par_cy   = wg_width           # center shifted up by wg_width
+top.shapes(layer).insert(db.DBox(0, par_cy - par_half, 10, par_cy + par_half))
+
 # --- 90-degree bend (center at (10, radius)) ---
 # Arc from 270° to 360° (i.e. -90° to 0°)
 cx, cy = 10.0, radius
@@ -43,6 +48,6 @@ y_max = radius + 10 + clad_gap
 top.shapes(clad_layer).insert(db.DBox(x_min, y_min, x_max, y_max))
 
 # Save GDS
-output = "py_klayout_example.gds"
+output = "layout_gds/py_klayout_example.gds"
 layout.write(output)
 print(f"Exported {output}")

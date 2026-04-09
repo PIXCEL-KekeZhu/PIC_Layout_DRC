@@ -1,3 +1,10 @@
+# Private config
+.env
+
+
+# Private project folder
+PIXCEL/
+
 # Generated GDS files
 *.gds
 *.lyrdb

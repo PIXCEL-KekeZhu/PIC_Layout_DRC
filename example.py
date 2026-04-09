@@ -23,7 +23,7 @@ with nd.Cell(name='top') as top:
     s2 = straight.put(b1.pin['b0'])
 
 # Export to GDS and show layout in matplotlib
-nd.export_gds(filename='example.gds')
+nd.export_gds(filename='layout_gds/example.gds')
 nd.export_plt(topcells=top)
 plt.show()
 print("Exported example.gds")
