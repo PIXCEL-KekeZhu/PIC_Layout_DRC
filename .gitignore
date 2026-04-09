@@ -1,0 +1,17 @@
+# Generated GDS files
+*.gds
+*.lyrdb
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# uv lock (optional: keep if you want reproducible installs)
+# uv.lock
+
+# macOS
+.DS_Store
