@@ -70,7 +70,6 @@ uv run py_klayout_example.py
 Using Nazca:
 
 ```bash
-uv run example.py
 uv run nazca_example.py
 ```
 
