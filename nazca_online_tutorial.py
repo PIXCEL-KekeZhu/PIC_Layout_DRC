@@ -1,3 +1,6 @@
+# nazca online tutorial
+# https://nazca-design.org/tutorials/
+
 import nazca as nd
 
 nd.strt(length=20).put()

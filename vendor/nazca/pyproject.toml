@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "nazca"
+version = "0.6.1"
+description = "Nazca Design"
+authors = [
+    "Ronald Broeke <R.G.Broeke@gmail.com>",
+    "Xaveer Leijtens <X.Leijtens@gmail.com>",
+]
+homepage = "https://nazca-design.org"
+license = "AGPLv3+"
+readme = "README.md"
+exclude = [
+    "nazca/version.py",
+    "nazca/slab.*",
+    "nazca/compact_models",
+    "nazca/not_in_package",
+    "nazca/*.gpg",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+numpy = ">=1.26.0"
+scipy = ">=1.13.0"
+pandas = "^2.2.2"
+matplotlib = ">=3.8.4"
+Pillow = ">=9.4.0"
+ipython = "^7.20.0"
+PyYAML = ">=5.1"
+pyclipper = ">=1.3.0.post5"
+
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.0"
+tox = "^4.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -4,6 +4,7 @@
 # --- Input / Output ---
 source($input)
 report("PIC DRC Report", $output)
+drc_out = new_target($drc_gds)
 
 # --- Parallel execution: thread count passed in from Python ---
 threads($threads.to_i)
@@ -15,11 +16,13 @@ metal = input(3, 0)   # Metal routing (if present)
 
 # --- Waveguide rules (run in parallel per layer) ---
 
-# WG.W1 - Minimum waveguide width
+# WG - Minimum waveguide width
 wg.width(0.3.um).output("WG.W1", "Waveguide width < 0.3 um")
+# wg_w1.output(drc_out, 1, 1)
 
 # WG.S1 - Minimum spacing between waveguides
 wg.space(0.2.um).output("WG.S1", "Waveguide spacing < 0.2 um")
+wg.space(0.2.um).output(drc_out, 1, 1)
 
 # WG.A1 - Minimum waveguide area (removes slivers)
 wg.with_area(nil, 0.1.um2).output("WG.A1", "Waveguide area < 0.1 um^2")

@@ -20,6 +20,7 @@ PIXCEL/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
 
 # uv lock (optional: keep if you want reproducible installs)
 # uv.lock

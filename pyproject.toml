@@ -3,7 +3,7 @@ name = "PIC"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-  "nazca==0.6.1",
+  "nazca",
   "Pillow>=9.4.0",
   "PyYAML>=5.1",
   "ipython>=7.20.0,<8.0.0",
@@ -14,3 +14,9 @@ dependencies = [
   "scipy>=1.13.0",
   "klayout>=0.30.7",
 ]
+
+[tool.setuptools]
+packages = []
+
+[tool.uv.sources]
+nazca = { path = "vendor/nazca" }
