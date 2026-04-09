@@ -5,9 +5,13 @@
 # Private project folder
 PIXCEL/
 
-# Generated GDS files
+# Generated GDS files (exclude public output folders)
 *.gds
 *.lyrdb
+!layout_gds/
+!layout_gds/**
+!drc_outputs/
+!drc_outputs/**
 
 # Virtual environment
 .venv/

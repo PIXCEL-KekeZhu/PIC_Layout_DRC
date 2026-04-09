@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report-database>
+ <description>PIC DRC Report</description>
+ <original-file/>
+ <generator>drc: script='C:\\Users\\zhuke\\Documents\\GitHub\\PIC_Layout_DRC\\drc_rules\\pic_drc.drc'</generator>
+ <top-cell>TOP</top-cell>
+ <tags>
+ </tags>
+ <categories>
+  <category>
+   <name>WG.W1</name>
+   <description>Waveguide width &lt; 0.3 um</description>
+   <categories>
+   </categories>
+  </category>
+  <category>
+   <name>WG.S1</name>
+   <description>Waveguide spacing &lt; 0.2 um</description>
+   <categories>
+   </categories>
+  </category>
+  <category>
+   <name>WG.A1</name>
+   <description>Waveguide area &lt; 0.1 um^2</description>
+   <categories>
+   </categories>
+  </category>
+  <category>
+   <name>WG.E1</name>
+   <description>Waveguide not enclosed by cladding by &gt;= 1.0 um</description>
+   <categories>
+   </categories>
+  </category>
+ </categories>
+ <cells>
+  <cell>
+   <name>TOP</name>
+   <variant/>
+   <layout-name/>
+   <references>
+   </references>
+  </cell>
+ </cells>
+ <items>
+  <item>
+   <tags/>
+   <category>'WG.S1'</category>
+   <cell>TOP</cell>
+   <visited>false</visited>
+   <multiplicity>1</multiplicity>
+   <comment/>
+   <image/>
+   <values>
+    <value>edge-pair: (10,0.25;10.117,0.251)|(10,0.45;10,0.25)</value>
+   </values>
+  </item>
+  <item>
+   <tags/>
+   <category>'WG.S1'</category>
+   <cell>TOP</cell>
+   <visited>false</visited>
+   <multiplicity>1</multiplicity>
+   <comment/>
+   <image/>
+   <values>
+    <value>edge-pair: (10.117,0.251;10.2,0.255)|(10,0.413;10,0.25)</value>
+   </values>
+  </item>
+ </items>
+</report-database>
