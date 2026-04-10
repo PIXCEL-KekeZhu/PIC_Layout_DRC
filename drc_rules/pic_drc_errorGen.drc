@@ -1,0 +1,9 @@
+# KLayout DRC Script for PIC (Photonic Integrated Circuit) layouts
+# Run via: klayout -b -r pic_drc.drc -rd input=<gds_file> -rd output=<report_file>
+
+# --- Input / Output ---
+source($input)
+report("PIC DRC Report", $output)
+drc_out = new_target($drc_gds)
+
+threads($threads.to_i)

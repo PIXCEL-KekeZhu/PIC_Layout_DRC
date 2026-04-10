@@ -1,0 +1,193 @@
+# KLayout DRC Script for PIC Freeform / Bent Waveguide Checks
+# Checks minimum bend radius, sharp corners, curved waveguide spacing,
+# cladding enclosure, basic waveguide geometry, and rib/partial-etch layers.
+#
+# Run via:
+#   klayout -b -r pic_freeform.drc \
+#     -rd input=<gds_file>         \
+#     -rd output=<report_file>     \
+#     -rd drc_gds=<gds_out>        \
+#     -rd threads=<N>
+#
+# GDS violation layer map:
+#   (1,1)  WG.W1    waveguide width < WG_W_MIN
+#   (1,2)  WG.W2    waveguide width > WG_W_MAX
+#   (1,3)  WG.SP1   waveguide spacing < WG_SP_MIN
+#   (1,4)  WG.A1    sliver / orphaned fragment
+#   (1,5)  WG.NOTCH edge notch
+#   (1,6)  WG.AC1   acute corner (near-zero bend radius)
+#   (1,10) WG.BR1   bend radius < R_MIN
+#   (1,11) WG.BR2   critical bend radius < R_TIGHT
+#   (1,12) WG.SP2   bent WG spacing < WG_SP_BEND
+#   (2,1)  WG.E1    cladding enclosure < CLAD_ENC
+#   (2,2)  WG.E2    bend outer cladding < CLAD_ENC_B
+#   (4,1)  RIB.W1   rib slab width < 0.5 um
+#   (4,2)  RIB.OVL1 waveguide core outside etch layer
+#   (4,3)  RIB.ENC1 etch enclosure < 0.3 um
+#   (4,4)  RIB.SP1  rib slab spacing < 0.3 um
+
+source($input)
+report("PIC Freeform/Bent Waveguide DRC Report", $output)
+drc_out = new_target($drc_gds)
+threads($threads.to_i) if $threads
+
+# ======================================================
+# Process design rules  (edit to match your PDK)
+# ======================================================
+WG_W_MIN     = 0.35   # minimum waveguide width (um)
+WG_W_NOM     = 0.45   # nominal single-mode waveguide width (um)
+WG_W_MAX     = 3.0    # maximum waveguide width / taper (um)
+WG_SP_MIN    = 0.2    # minimum waveguide-to-waveguide spacing (um)
+WG_SP_BEND   = 0.4    # minimum spacing inside bend zones (um)
+R_MIN        = 5.0    # minimum bend radius at waveguide center (um)
+R_TIGHT      = 2.0    # critical tight-bend radius (um) — severe loss expected
+CLAD_ENC     = 1.0    # cladding enclosure around straight waveguide (um)
+CLAD_ENC_B   = 1.5    # cladding enclosure on outer edge of bends (um)
+ANGLE_THR    = 45     # sharp-corner threshold (degrees)
+FRAG_AREA    = 0.05   # minimum area for a valid waveguide polygon (um^2)
+
+# ======================================================
+# Layer definitions  (edit to match your layer map)
+# ======================================================
+wg   = input(1, 0)    # waveguide core — strip / freeform
+clad = input(2, 0)    # oxide / cladding layer
+etch = input(4, 0)    # partial etch / rib slab (optional; skip if absent)
+
+# ======================================================
+# Morphological helpers for bend detection
+# ======================================================
+# For a waveguide of nominal width WG_W_NOM bent at center radius R_MIN,
+# the inner edge has radius  r_inner = R_MIN - WG_W_NOM/2.
+# Eroding the polygon by r_inner then dilating back (morphological opening)
+# removes any region whose inner-edge bend radius is tighter than R_MIN.
+# Remaining "missing" material  =  tight-bend violation zones.
+
+r_open       = R_MIN   - WG_W_NOM / 2   # 5.0  - 0.225 = 4.775 um
+r_open_tight = R_TIGHT - WG_W_NOM / 2   # 2.0  - 0.225 = 1.775 um
+
+wg_opened       = wg.sized(-r_open.um).sized(r_open.um)
+wg_opened_tight = wg.sized(-r_open_tight.um).sized(r_open_tight.um)
+
+# Regions lost in the opening are tight-bend zones; filter sub-pixel noise
+tight_zones      = (wg - wg_opened).with_area(FRAG_AREA.um2, nil)
+very_tight_zones = (wg - wg_opened_tight).with_area(FRAG_AREA.um2, nil)
+
+# ======================================================
+# 1. Basic waveguide geometry
+# ======================================================
+
+# WG.W1 — minimum width (angle-aware: ignores sub-pixel polygon artefacts)
+wg_w1 = wg.width(WG_W_MIN.um, angle_limit(ANGLE_THR))
+wg_w1.output("WG.W1", "Waveguide width < #{WG_W_MIN} um")
+wg_w1.output(drc_out, 1, 1)
+
+# WG.W2 — maximum width (catches merged or oversized shapes)
+wg_w2 = wg.sized(-(WG_W_MAX / 2).um)
+wg_w2.output("WG.W2", "Waveguide width > #{WG_W_MAX} um")
+wg_w2.output(drc_out, 1, 2)
+
+# WG.SP1 — minimum spacing between waveguides
+wg_sp1 = wg.space(WG_SP_MIN.um, angle_limit(ANGLE_THR))
+wg_sp1.output("WG.SP1", "Waveguide spacing < #{WG_SP_MIN} um")
+wg_sp1.output(drc_out, 1, 3)
+
+# WG.A1 — minimum area (removes slivers and floating fragments)
+wg_a1 = wg.with_area(nil, FRAG_AREA.um2)
+wg_a1.output("WG.A1", "Waveguide area < #{FRAG_AREA} um^2 (sliver or orphaned fragment)")
+wg_a1.output(drc_out, 1, 4)
+
+# WG.NOTCH — inward notch / pinch on waveguide edges
+wg_notch = wg.notch(WG_W_MIN.um, angle_limit(ANGLE_THR))
+wg_notch.output("WG.NOTCH", "Notch in waveguide edge < #{WG_W_MIN} um")
+wg_notch.output(drc_out, 1, 5)
+
+# ======================================================
+# 2. Sharp corner / acute angle detection
+# ======================================================
+
+# WG.AC1 — acute corners (near-zero bend radius)
+# Compare width violations with and without the angle filter.
+# Violations present only in the unfiltered run correspond to sharp corners
+# that the angle_limit parameter would normally ignore.
+wg_w_all    = wg.width(WG_W_MIN.um)
+wg_w_filt   = wg.width(WG_W_MIN.um, angle_limit(ANGLE_THR))
+wg_ac1      = wg_w_all.polygons - wg_w_filt.polygons
+wg_ac1.output("WG.AC1", "Acute corner in waveguide (corner angle < #{ANGLE_THR} deg — near-zero bend radius)")
+wg_ac1.output(drc_out, 1, 6)
+
+# ======================================================
+# 3. Minimum bend radius
+# ======================================================
+
+# WG.BR1 — bend radius < R_MIN at the waveguide center-line
+# Note: waveguide end-caps will also flag here.  If port regions are defined
+# on a separate layer you can subtract them: tight_zones - port_regions.
+tight_zones.output("WG.BR1", "Bend radius < #{R_MIN} um (center-line) — excessive optical loss / mode mismatch")
+tight_zones.output(drc_out, 1, 10)
+
+# WG.BR2 — critical tight bend (R < R_TIGHT): catastrophic loss region
+very_tight_zones.output("WG.BR2", "Critical bend radius < #{R_TIGHT} um — severe mode leakage / catastrophic loss")
+very_tight_zones.output(drc_out, 1, 11)
+
+# ======================================================
+# 4. Bent waveguide spacing (crowding near curves)
+# ======================================================
+
+# WG.SP2 — reduced spacing tolerance does not apply inside bend zones.
+# Waveguides that pass through a bend region must maintain the larger
+# WG_SP_BEND clearance from all neighbors.
+curved_wg = wg.interacting(tight_zones)
+wg_sp2 = curved_wg.space(WG_SP_BEND.um)
+wg_sp2.output("WG.SP2", "Bent waveguide spacing < #{WG_SP_BEND} um (#{WG_SP_BEND} um rule applies inside bend zones)")
+wg_sp2.output(drc_out, 1, 12)
+
+# ======================================================
+# 5. Cladding enclosure
+# ======================================================
+
+if clad.count > 0
+
+  # WG.E1 — waveguide must be enclosed by cladding everywhere
+  wg_e1 = wg.enclosed(clad, CLAD_ENC.um)
+  wg_e1.output("WG.E1", "Waveguide not enclosed by cladding >= #{CLAD_ENC} um")
+  wg_e1.output(drc_out, 2, 1)
+
+  # WG.E2 — extra cladding required on outer edge of bends
+  # The evanescent field extends further outward around a bend, so the
+  # outer cladding must be thicker than for a straight waveguide.
+  bent_outer = tight_zones.sized(CLAD_ENC_B.um)
+  wg_e2 = (bent_outer - clad).interacting(tight_zones)
+  wg_e2.output("WG.E2", "Insufficient cladding on bend outer edge (need >= #{CLAD_ENC_B} um)")
+  wg_e2.output(drc_out, 2, 2)
+
+end
+
+# ======================================================
+# 6. Rib / partial-etch waveguide (optional)
+# ======================================================
+
+if etch.count > 0
+
+  rib_slab = etch - wg   # shallow-etch slab region outside the full-etch core
+
+  # RIB.W1 — rib slab minimum width
+  rib_w1 = rib_slab.width(0.5.um)
+  rib_w1.output("RIB.W1", "Rib slab width < 0.5 um (too narrow for lateral guiding)")
+  rib_w1.output(drc_out, 4, 1)
+
+  # RIB.OVL1 — waveguide core must be fully covered by etch layer
+  rib_ovl1 = wg - etch
+  rib_ovl1.output("RIB.OVL1", "Waveguide core extends outside etch layer")
+  rib_ovl1.output(drc_out, 4, 2)
+
+  # RIB.ENC1 — etch must extend beyond waveguide core by a minimum margin
+  rib_enc1 = wg.enclosed(etch, 0.3.um)
+  rib_enc1.output("RIB.ENC1", "Etch layer does not enclose waveguide core by >= 0.3 um")
+  rib_enc1.output(drc_out, 4, 3)
+
+  # RIB.SP1 — rib slab spacing to adjacent rib regions
+  rib_sp1 = rib_slab.space(0.3.um)
+  rib_sp1.output("RIB.SP1", "Rib slab spacing < 0.3 um")
+  rib_sp1.output(drc_out, 4, 4)
+
+end
