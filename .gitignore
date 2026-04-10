@@ -4,6 +4,7 @@
 
 # Private project folder
 PIXCEL/
+nazca_course.py
 
 # Generated GDS files (exclude public output folders)
 *.gds
