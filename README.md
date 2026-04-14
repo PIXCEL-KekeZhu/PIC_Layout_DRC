@@ -1,20 +1,21 @@
-# PIC Layout DRC
+# PIC Simulation Layout and DRC
 
-A Python toolkit for creating, viewing, running Design Rule Checks (DRC), checking connectivity, and visualizing **Photonic Integrated Circuit (PIC)** layouts in 2.5D using [KLayout](https://www.klayout.de/) and [Nazca](https://nazca-design.org/).
+A Python toolkit for creating, simulating, viewing, running Design Rule Checks (DRC), checking connectivity, and visualizing **Photonic Integrated Circuit (PIC)** layouts in 2.5D using [KLayout](https://www.klayout.de/), [gdsfactory](https://gdsfactory.github.io/gdsfactory/) and [Nazca](https://nazca-design.org/).
 
 ---
 
 ## Project Structure
 
 ```
-PIC_Layout_DRC/
+PIC_SIM_LAYOUT_DRC/
 │
 ├── Layout generation
 │   ├── py_klayout_example.py           # KLayout Python API layout example
 │   ├── klayout_PIC_example.py          # Full MZI PIC layout (MMI, phase shifter, bond pads, GC)
 │   ├── klayout_simple_MZI.py           # Minimal MZI layout
 │   ├── nazca_example.py                # Nazca layout assignments
-│   └── nazca_online_tutorial.py        # Nazca online tutorial examples
+│   ├── nazca_online_tutorial.py        # Nazca online tutorial examples
+│   └── GDSFactory_PIC_example.py       # MZI PIC layout using gdsfactory (private)
 │
 ├── KLayout tools
 │   ├── klayout_utils.py                # Shared utilities (env, binary, launch, find_latest_gds)
@@ -55,6 +56,7 @@ uv sync
 ```
 
 Nazca is bundled in `vendor/nazca/` — no separate install needed.
+gdsfactory is installed as a Python package via `uv sync`.
 
 ---
 
@@ -74,19 +76,28 @@ On macOS this is not needed — KLayout is found automatically. On Windows, `kla
 
 ### 1. Generate a GDS layout
 
-Using the KLayout Python API:
+**Using the KLayout Python API:**
 
 ```bash
 uv run py_klayout_example.py
 ```
 
-Using the full MZI PIC example (MMI splitter/combiner, S-bend arms, thermo-optic phase shifter, bond pads, grating couplers, photodetector pad):
+**Using the full MZI PIC example** (MMI splitter/combiner, S-bend arms, thermo-optic phase shifter, bond pads, grating couplers, photodetector pad):
 
 ```bash
 uv run klayout_PIC_example.py
 ```
 
-Using Nazca:
+**Using gdsfactory** (MZI with top metal heater, bond pads, and grating couplers):
+
+```bash
+uv run GDSFactory_PIC_example.py
+uv run GDSFactory_PIC_example.py --out layout_gds/my_mzi.gds
+```
+
+Builds the PIC using the gdsfactory generic PDK component library, then remaps layers to the project convention (WG=1/0, CLAD=2/0, METAL=3/0) and writes to `layout_gds/`.
+
+**Using Nazca:**
 
 ```bash
 uv run nazca_example.py
@@ -292,8 +303,10 @@ DRC violation polygons are written to named layers in the companion `_layers.gds
 
 The following are excluded from version control:
 
-| Folder / File     | Reason                                  |
-|-------------------|-----------------------------------------|
-| `.env`            | Contains local KLayout executable path  |
-| `PIXCEL/`         | Private project files                   |
-| `nazca_course.py` | Private course exercises                |
+| Folder / File              | Reason                                  |
+|----------------------------|-----------------------------------------|
+| `.env`                     | Contains local KLayout executable path  |
+| `PIXCEL/`                  | Private project files                   |
+| `nazca_course.py`          | Private course exercises                |
+| `GDSFactory_PIC_example.py`| Private gdsfactory layout script        |
+| `GDSFactory_course.py`     | Private gdsfactory course exercises     |
