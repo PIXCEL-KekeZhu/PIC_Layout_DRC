@@ -2,9 +2,11 @@
 .env
 
 
-# Private project folder
+# Private / ignored scripts
 PIXCEL/
 nazca_course.py
+GDSFactory_PIC_example.py
+GDSFactory_course.py
 
 # Generated GDS files (exclude public output folders)
 *.gds

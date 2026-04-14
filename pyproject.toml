@@ -13,6 +13,7 @@ dependencies = [
   "pyclipper>=1.3.0",
   "scipy>=1.13.0",
   "klayout>=0.30.7",
+  "gdsfactory>=9.40.1",
 ]
 
 [tool.setuptools]
