@@ -1,9 +1,11 @@
 """
 Shared KLayout utilities: env loading, binary detection, process check, launch.
 """
+import glob
 import os
 import platform
 import subprocess
+import sys
 
 def load_env():
     env_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -45,6 +47,22 @@ def is_klayout_running() -> bool:
             return result.returncode == 0
     except Exception:
         return False
+
+def find_latest_gds(search_dir: str = None) -> str:
+    """Return the most recently modified .gds file in *search_dir*.
+
+    *search_dir* defaults to layout_gds/ next to this file.
+    Exits with an error message if no GDS files are found.
+    """
+    if search_dir is None:
+        search_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "layout_gds")
+    gds_files = glob.glob(os.path.join(search_dir, "*.gds"))
+    if not gds_files:
+        print(f"[error] No GDS files found in {search_dir}")
+        sys.exit(1)
+    latest = max(gds_files, key=os.path.getmtime)
+    print(f"Latest GDS: {os.path.basename(latest)}")
+    return latest
 
 def klayout_open(*args: str):
     """

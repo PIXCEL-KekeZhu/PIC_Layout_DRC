@@ -1,6 +1,6 @@
 # PIC Layout DRC
 
-A Python toolkit for creating, viewing, running Design Rule Checks (DRC), and visualizing **Photonic Integrated Circuit (PIC)** layouts in 2.5D using [KLayout](https://www.klayout.de/) and [Nazca](https://nazca-design.org/).
+A Python toolkit for creating, viewing, running Design Rule Checks (DRC), checking connectivity, and visualizing **Photonic Integrated Circuit (PIC)** layouts in 2.5D using [KLayout](https://www.klayout.de/) and [Nazca](https://nazca-design.org/).
 
 ---
 
@@ -8,26 +8,36 @@ A Python toolkit for creating, viewing, running Design Rule Checks (DRC), and vi
 
 ```
 PIC_Layout_DRC/
-├── py_klayout_example.py       # KLayout Python API layout example
-├── klayout_PIC_example.py      # Full MZI PIC layout (MMI, phase shifter, bond pads, GC)
-├── klayout_simple_MZI.py       # Minimal MZI layout
-├── nazca_example.py            # Nazca layout assignments
-├── nazca_online_tutorial.py    # Nazca online tutorial examples
 │
-├── klayout_opengds.py          # Open GDS file(s) in KLayout Editor
-├── klayout_DRCCheck.py         # Run DRC (any rule script) and open results in KLayout
-├── klayout_ShowDRCResults.py   # Open latest or specified DRC report in KLayout
-├── klayout_2p5DViews.py        # Generate 2.5D view macro and open GDS in KLayout
-├── klayout_utils.py            # Shared KLayout utilities (env, launch, process check)
+├── Layout generation
+│   ├── py_klayout_example.py           # KLayout Python API layout example
+│   ├── klayout_PIC_example.py          # Full MZI PIC layout (MMI, phase shifter, bond pads, GC)
+│   ├── klayout_simple_MZI.py           # Minimal MZI layout
+│   ├── nazca_example.py                # Nazca layout assignments
+│   └── nazca_online_tutorial.py        # Nazca online tutorial examples
+│
+├── KLayout tools
+│   ├── klayout_utils.py                # Shared utilities (env, binary, launch, find_latest_gds)
+│   ├── klayout_opengds.py              # Open GDS file in KLayout Editor
+│   ├── klayout_DRCCheck.py             # Run DRC rule script and open results in KLayout
+│   ├── klayout_ShowDRCResults.py       # Open latest or specified DRC report in KLayout
+│   ├── klayout_2p5DViews.py            # Generate 2.5D view macro and open GDS in KLayout
+│   ├── klayout_Connectivity.py         # GDS connectivity check using KLayout NetTracer
+│   ├── klayout_GenerateLayerProperties.py  # Generate a .lyp layer properties file
+│   └── klayout_LoadLayerProperties.py  # Open GDS with a .lyp file applied in KLayout
 │
 ├── drc_rules/
-│   ├── pic_drc.drc             # General PIC DRC rules (width, spacing, enclosure, metal)
-│   └── pic_freeform.drc        # Freeform / bent waveguide DRC (bend radius, sharp corners)
-├── layout_gds/                 # Generated GDS output files
-├── drc_outputs/                # DRC report (.lyrdb) and DRC layer GDS files
+│   ├── pic_drc.drc                     # General PIC DRC rules (width, spacing, enclosure, metal)
+│   ├── pic_freeform.drc                # Freeform / bent waveguide DRC (bend radius, sharp corners)
+│   └── pic_drc_errorGen.drc            # DRC error generation script (test/debug)
+│
+├── layout_gds/                         # Generated GDS output files
+├── layout_lyp/
+│   └── pic_process.lyp                 # KLayout layer properties (colours, patterns, groups)
+├── drc_outputs/                        # DRC report (.lyrdb) and violation layer GDS files
 ├── vendor/
-│   └── nazca/                  # Nazca-Design 0.6.1 (local source)
-└── .env                        # Private config (not tracked by git)
+│   └── nazca/                          # Nazca-Design 0.6.1 (local source)
+└── .env                                # Private config (not tracked by git)
 ```
 
 ---
@@ -86,19 +96,44 @@ GDS files are saved to `layout_gds/`.
 
 ---
 
-### 2. Open a GDS file in KLayout (Editor)
+### 2. Open a GDS file in KLayout
 
 ```bash
 uv run klayout_opengds.py layout_gds/klayout_PIC_example.gds
-uv run klayout_opengds.py          # opens the latest GDS from layout_gds/
+uv run klayout_opengds.py          # opens the most recently modified GDS in layout_gds/
 ```
-
-- If KLayout is **not running**: launches KLayout Editor with the file
-- If KLayout is **already running**: opens the file in a new panel of the same instance
 
 ---
 
-### 3. 2.5D View
+### 3. Layer properties
+
+Generate the `.lyp` layer properties file for this process:
+
+```bash
+uv run klayout_GenerateLayerProperties.py               # saves to layout_lyp/pic_process.lyp
+uv run klayout_GenerateLayerProperties.py --out my.lyp  # custom output path
+```
+
+Open a GDS in KLayout with layer properties applied:
+
+```bash
+uv run klayout_LoadLayerProperties.py layout_gds/klayout_PIC_example.gds
+uv run klayout_LoadLayerProperties.py                   # latest GDS + default pic_process.lyp
+uv run klayout_LoadLayerProperties.py --lyp layout_lyp/pic_process.lyp
+```
+
+The `.lyp` defines two layer groups in the KLayout layer panel:
+
+| Group | Layer | Name | Style |
+|---|---|---|---|
+| Process Layers | 1/0 | WG | Royal blue, solid |
+| Process Layers | 2/0 | CLAD | Light blue, diagonal hatch, transparent |
+| Process Layers | 3/0 | METAL | Gold, solid |
+| DRC Violations | 1/1 … 4/4 | WG.* / RIB.* | Red (error) / Orange (warning) |
+
+---
+
+### 4. 2.5D View
 
 Generates a `pixcel_mzi_view.lyd25` macro and opens the GDS in KLayout:
 
@@ -113,17 +148,17 @@ The macro is installed to `~/KLayout/d25/pixcel_mzi_view.lyd25`. After KLayout o
 
 PIC layer stack used for 2.5D extrusion:
 
-| Layer | Material       | z-start (µm) | z-stop (µm) |
-|-------|---------------|-------------|------------|
-| 2/0   | Cladding (SiO2) | −1.0       | +2.0       |
-| 1/0   | Waveguide (Si)  | 0.0        | +0.22      |
-| 3/0   | Metal           | +0.5       | +1.0       |
+| Layer | Material        | z-start (µm) | z-stop (µm) |
+|-------|-----------------|-------------|------------|
+| 2/0   | Cladding (SiO2) | −1.0        | +2.0       |
+| 1/0   | Waveguide (Si)  | 0.0         | +0.22      |
+| 3/0   | Metal           | +0.5        | +1.0       |
 
 > **Note:** If KLayout is already running, close it first so the new macro is loaded at startup.
 
 ---
 
-### 4. Run DRC
+### 5. Run DRC
 
 **General PIC rules** (width, spacing, cladding enclosure, metal overlap):
 
@@ -145,7 +180,7 @@ uv run klayout_DRCCheck.py layout_gds/klayout_PIC_example.gds --drc drc_rules/pi
 
 ---
 
-### 5. View existing DRC results
+### 6. View existing DRC results
 
 ```bash
 uv run klayout_ShowDRCResults.py                                                          # latest report
@@ -154,7 +189,30 @@ uv run klayout_ShowDRCResults.py drc_outputs/klayout_PIC_example_pic_freeform_la
 ```
 
 Automatically pairs the `.lyrdb` with its companion `_layers.gds` regardless of DRC script name.
-The companion GDS already contains the original layout shapes, so no separate source file is needed.
+
+---
+
+### 7. Connectivity check
+
+Traces all nets in the GDS using `db.NetTracer` and reports connected components per layer:
+
+```bash
+uv run klayout_Connectivity.py layout_gds/klayout_PIC_example.gds
+uv run klayout_Connectivity.py                    # latest GDS
+uv run klayout_Connectivity.py --min-area 0.05    # custom fragment threshold (µm²)
+uv run klayout_Connectivity.py --open             # open GDS in KLayout after check
+```
+
+For each conducting layer the script reports:
+
+- number of distinct nets (connected components)
+- shape count, bounding-box dimensions, and centroid per net
+- layers touched (useful when via connections are defined)
+- any net whose bounding-box area is below `--min-area` is flagged as an **isolated fragment**
+
+Connectivity rules and via connections are configured at the top of the script (`SAME_LAYER_CONNECTIONS`, `VIA_CONNECTIONS`).
+
+Exits with code `0` (pass) or `1` (fragments found) — suitable for CI pipelines.
 
 ---
 
@@ -176,17 +234,17 @@ The companion GDS already contains the original layout shapes, so no separate so
          0   20 35  41  61           141 161 167   207 232
 ```
 
-| Component              | x-range (µm) | Layer |
-|------------------------|-------------|-------|
-| Input grating coupler  | 0 .. 20     | 1/0   |
-| MMI splitter (1×2)     | 35 .. 41    | 1/0   |
-| Upper / lower arms     | 61 .. 141   | 1/0   |
-| Heater stripe          | 76 .. 126   | 3/0   |
-| V+ / GND bond pads     | 56..96 / 106..146 | 3/0 |
-| MMI combiner (2×1)     | 161 .. 167  | 1/0   |
-| Output grating coupler | 187 .. 207  | 1/0   |
-| Photodetector pad      | 212 .. 252  | 3/0   |
-| SiO2 cladding          | full chip   | 2/0   |
+| Component              | x-range (µm)      | Layer |
+|------------------------|-------------------|-------|
+| Input grating coupler  | 0 .. 20           | 1/0   |
+| MMI splitter (1×2)     | 35 .. 41          | 1/0   |
+| Upper / lower arms     | 61 .. 141         | 1/0   |
+| Heater stripe          | 76 .. 126         | 3/0   |
+| V+ / GND bond pads     | 56..96 / 106..146 | 3/0   |
+| MMI combiner (2×1)     | 161 .. 167        | 1/0   |
+| Output grating coupler | 187 .. 207        | 1/0   |
+| Photodetector pad      | 212 .. 252        | 3/0   |
+| SiO2 cladding          | full chip         | 2/0   |
 
 ---
 
@@ -196,33 +254,33 @@ The companion GDS already contains the original layout shapes, so no separate so
 
 | Rule   | Layer           | Description                                |
 |--------|-----------------|--------------------------------------------|
-| WG.W1  | Waveguide (1/0) | Minimum width ≥ 0.3 µm                    |
-| WG.S1  | Waveguide (1/0) | Minimum spacing ≥ 0.2 µm                  |
-| WG.A1  | Waveguide (1/0) | Minimum area ≥ 0.1 µm²                    |
-| WG.E1  | Waveguide (1/0) | Must be enclosed by cladding by ≥ 1.0 µm  |
-| M.W1   | Metal (3/0)     | Minimum width ≥ 0.5 µm                    |
-| M.S1   | Metal (3/0)     | Minimum spacing ≥ 0.5 µm                  |
-| M.OL1  | Metal (3/0)     | Must not overlap waveguide                 |
+| WG.W1  | Waveguide (1/0) | Minimum width ≥ 0.3 µm                     |
+| WG.S1  | Waveguide (1/0) | Minimum spacing ≥ 0.2 µm                   |
+| WG.A1  | Waveguide (1/0) | Minimum area ≥ 0.1 µm²                     |
+| WG.E1  | Waveguide (1/0) | Must be enclosed by cladding by ≥ 1.0 µm   |
+| M.W1   | Metal (3/0)     | Minimum width ≥ 0.5 µm                     |
+| M.S1   | Metal (3/0)     | Minimum spacing ≥ 0.5 µm                   |
+| M.OL1  | Metal (3/0)     | Must not overlap waveguide                  |
 
 ### `drc_rules/pic_freeform.drc` — Freeform / bent waveguide rules
 
-| Rule       | GDS layer | Description                                              |
-|------------|-----------|----------------------------------------------------------|
-| WG.W1      | (1,1)     | Minimum waveguide width ≥ 0.35 µm                        |
-| WG.W2      | (1,2)     | Maximum waveguide width ≤ 3.0 µm                         |
-| WG.SP1     | (1,3)     | Minimum waveguide spacing ≥ 0.2 µm                       |
-| WG.A1      | (1,4)     | Minimum area — removes slivers and orphaned fragments     |
-| WG.NOTCH   | (1,5)     | Inward notch / pinch on waveguide edges                  |
-| WG.AC1     | (1,6)     | Acute corner (< 45°) — near-zero bend radius             |
-| WG.BR1     | (1,10)    | Bend radius < 5 µm at waveguide center-line              |
-| WG.BR2     | (1,11)    | Critical bend radius < 2 µm — severe loss expected       |
-| WG.SP2     | (1,12)    | Bent waveguide spacing < 0.4 µm inside bend zones        |
-| WG.E1      | (2,1)     | Cladding enclosure < 1.0 µm                              |
-| WG.E2      | (2,2)     | Bend outer-edge cladding < 1.5 µm                        |
-| RIB.W1     | (4,1)     | Rib slab width < 0.5 µm *(rib WG only)*                  |
-| RIB.OVL1   | (4,2)     | Waveguide core extends outside etch layer *(rib WG only)*|
-| RIB.ENC1   | (4,3)     | Etch enclosure < 0.3 µm *(rib WG only)*                  |
-| RIB.SP1    | (4,4)     | Rib slab spacing < 0.3 µm *(rib WG only)*                |
+| Rule     | GDS layer | Description                                               |
+|----------|-----------|-----------------------------------------------------------|
+| WG.W1    | (1,1)     | Minimum waveguide width ≥ 0.35 µm                         |
+| WG.W2    | (1,2)     | Maximum waveguide width ≤ 3.0 µm                          |
+| WG.SP1   | (1,3)     | Minimum waveguide spacing ≥ 0.2 µm                        |
+| WG.A1    | (1,4)     | Minimum area — removes slivers and orphaned fragments      |
+| WG.NOTCH | (1,5)     | Inward notch / pinch on waveguide edges                   |
+| WG.AC1   | (1,6)     | Acute corner (< 45°) — near-zero bend radius              |
+| WG.BR1   | (1,10)    | Bend radius < 5 µm at waveguide centre-line               |
+| WG.BR2   | (1,11)    | Critical bend radius < 2 µm — severe loss expected        |
+| WG.SP2   | (1,12)    | Bent waveguide spacing < 0.4 µm inside bend zones         |
+| WG.E1    | (2,1)     | Cladding enclosure < 1.0 µm                               |
+| WG.E2    | (2,2)     | Bend outer-edge cladding < 1.5 µm                         |
+| RIB.W1   | (4,1)     | Rib slab width < 0.5 µm *(rib WG only)*                   |
+| RIB.OVL1 | (4,2)     | Waveguide core extends outside etch layer *(rib WG only)* |
+| RIB.ENC1 | (4,3)     | Etch enclosure < 0.3 µm *(rib WG only)*                   |
+| RIB.SP1  | (4,4)     | Rib slab spacing < 0.3 µm *(rib WG only)*                 |
 
 Bend radius is checked via **morphological opening**: the waveguide is eroded by `R_min − W_nom/2` then dilated back; regions that disappear had an inner-edge bend radius tighter than `R_min`.
 
@@ -234,8 +292,8 @@ DRC violation polygons are written to named layers in the companion `_layers.gds
 
 The following are excluded from version control:
 
-| Folder / File   | Reason                              |
-|-----------------|-------------------------------------|
-| `.env`          | Contains local KLayout executable path |
-| `PIXCEL/`       | Private project files               |
-| `nazca_course.py` | Private course exercises          |
+| Folder / File     | Reason                                  |
+|-------------------|-----------------------------------------|
+| `.env`            | Contains local KLayout executable path  |
+| `PIXCEL/`         | Private project files                   |
+| `nazca_course.py` | Private course exercises                |

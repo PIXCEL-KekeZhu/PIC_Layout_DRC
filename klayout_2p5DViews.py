@@ -13,9 +13,8 @@ Usage:
 """
 import os
 import sys
-import glob
 import subprocess
-from klayout_utils import load_env, get_klayout_bin, is_klayout_running
+from klayout_utils import load_env, get_klayout_bin, is_klayout_running, find_latest_gds
 
 load_env()
 
@@ -95,12 +94,7 @@ def main():
             print(f"Error: file not found: {gds_file}")
             sys.exit(1)
     else:
-        gds_files = glob.glob(os.path.join(BASE_DIR, "layout_gds", "*.gds"))
-        if not gds_files:
-            print("No GDS files found in layout_gds/")
-            sys.exit(1)
-        gds_file = max(gds_files, key=os.path.getmtime)
-        print(f"Latest GDS: {os.path.basename(gds_file)}")
+        gds_file = find_latest_gds()
 
     # Install 2.5D script
     lyd25_path = install_lyd25()
